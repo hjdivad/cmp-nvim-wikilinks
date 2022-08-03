@@ -1,0 +1,76 @@
+# https://help.github.com/en/actions/reference/workflow-syntax-for-github-actions
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+    tags:
+      - '*'
+
+jobs:
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+
+      - name: Environment information
+        run: |
+          uname
+          uname -a
+
+      - uses: actions/checkout@v2
+
+      - name: Install fzf
+        run: sudo apt-get -y install fzf
+
+      - name: Download Neovim
+        run: |
+          mkdir -p build
+          wget https://github.com/neovim/neovim/releases/download/v0.7.0/nvim.appimage
+          chmod +x nvim.appimage
+          mv nvim.appimage ./build/nvim
+          echo "${PWD}/build" >> $GITHUB_PATH
+
+      - name: Install python3
+        uses: actions/setup-python@v4
+        env:
+          DEBUG_SSH: ${{ secrets.DebugSSH }}
+        if: ${{ env.DEBUG_SSH == 'true' }}
+        with:
+          python-version: '3.x'
+            # architecture: 'x64' #defaults to x64
+
+      - name: Install python neovim module
+        env:
+          DEBUG_SSH: ${{ secrets.DebugSSH }}
+        if: ${{ env.DEBUG_SSH == 'true' }}
+        run: |
+          pip3 install neovim
+
+      - name: Setup upterm session
+        env:
+          DEBUG_SSH: ${{ secrets.DebugSSH }}
+        if: ${{ env.DEBUG_SSH == 'true' }}
+        uses: lhotari/action-upterm@v1
+        with:
+          ## limits ssh access and adds the ssh public key for the user which triggered the workflow
+          # limit-access-to-actor: true
+          ## limits ssh access and adds the ssh public keys of the listed GitHub users
+          limit-access-to-users: hjdivad,rwjblue
+
+      - name: Install Plugins
+        env:
+          NVIM_FLAGS: ${{ secrets.NvimFlags }}
+        run: |
+          nvim ${{ env.NVIM_FLAGS }} --headless --noplugin -u ./tests/bootstrap.lua  --cmd 'set rtp+=.'
+
+      - name: test
+        env:
+          DEBUG: ${{ secrets.Debug }}
+        run: |
+          make --version
+          DEBUG=${{env.DEBUG}} make -f Makefile.ci test
