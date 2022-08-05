@@ -1,13 +1,9 @@
 local cmp = require('cmp')
 if cmp == nil then
-  error('cmp-nvim-wikilinks requires cmp')
+  error('cmp_nvim_wikilinks requires cmp')
 end
 
 
---TODO: log
--- <https://github.com/hjdivad/dotfiles/blob/c44b70a46bc82f09301a633b3b885e839d46016a/home/.config/nvim.symlink/lua/hjdivad/utils.lua#L4-L19>
-
--- TODO: rename to cmp-nvim-wikilinks-markdown
 local CmpWikilinks = {}
 
 CmpWikilinks.new = function()
@@ -15,8 +11,7 @@ CmpWikilinks.new = function()
 end
 
 function CmpWikilinks:setup()
-  -- require('cmp_vimpath').setup { ... }
-  -- TODO: impl
+  -- require('cmp_nvim_wikilinks').setup { ... }
 end
 
 function CmpWikilinks:is_available()
@@ -29,8 +24,7 @@ function CmpWikilinks:is_available()
 end
 
 function CmpWikilinks:get_debug_name()
-  -- TODO: cmp-nvim-wikilinks
-  return 'cmp-vimpath'
+  return 'cmp-nvim-wikilinks'
 end
 
 function CmpWikilinks:get_trigger_character()
