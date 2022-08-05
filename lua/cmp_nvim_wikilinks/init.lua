@@ -56,23 +56,48 @@ function CmpWikilinks:complete(params, callback)
   end
 end
 
-function CmpWikilinks:resolve(completion_item, callback)
-  -- TODO: create preview text by reading the file
-  --
-  -- completion_item.documentation = {
-  --   kind = cmp.lsp.MarkupKind.Markdown,
-  --   value = [[
-  --   # Interesting
+---@class CmpWikiLinks.resolve.Options
+---@field io iolib The `IO` lib to use. Defaults to the global `io`.
 
-  --   * but
-  --   * does
-  --   * it
-  --   * work
-
-  --   **these** are the questions
-  --   ]]
-  -- }
+---Resolve the completion item. This tries to read `completion_item.path` and
+---add a markdown preview to `completion_item.documentation`
+---
+---@param completion_item CmpWikiLinks.CompletionItem
+---@param options?
+---@param callback any
+function CmpWikilinks:resolve(completion_item, callback, options)
+  CmpWikilinks._append_preview(completion_item, options)
   callback(completion_item)
+end
+
+---@param completion_item CmpWikiLinks.CompletionItem
+---@param options? CmpWikiLinks.resolve.Options
+function CmpWikilinks._append_preview(completion_item, options)
+  local path = completion_item.path
+  if not path then
+    -- unexpected completion item
+    return
+  end
+
+  local opts = options or {}
+  local io = opts.io or io
+
+  local file = io.open(path)
+  if not file then
+    -- this should be rare (we already found the file via globpath), but
+    -- perhaps it was removed async or disk failure &c.
+    return
+  end
+
+  --TODO: in case of large files, better to read a fixed amount and then delete
+  --from the end to the last section start or something similar
+  local content = file:read('a')
+  completion_item.documentation = {
+    kind = 'markdown',
+    value = content
+  }
+
+  file:close()
 end
 
 -- function CmpVimPath:execute(completion_item, callback)
@@ -121,8 +146,31 @@ CmpWikilinks._get_completion_pattern = function(line, column)
   return nil
 end
 
-CmpWikilinks._find_completion_items = function(pattern, ...)
-  local opts = ({ ... })[1] or {}
+---@class CmpWikiLinks.CompletionItem Includes necessary fields from `lsp.CompletionItem` with some extensions for internal use.
+---
+---@field label string The label to show the user as well as the text to complete.
+---@field path string The absolute path to the file.
+---@field documentation lsp.MarkupContent|nil Preview documentation found for the item.
+---
+---@see lsp.CompletionItem
+
+---@class CmpWikilinks._find_completion_items.Options
+---@field globpath fun(path: string, pat: string, nosuf: boolean, list: boolean): string[] optional function to use for searching `paths`. Defaults to `vim.fn.globpath`
+---@field paths string[] The paths to search. Defaults to `vim.opt.path.get()`
+
+---Return a list of completion items for a pattern. The pattern is searched
+---across all entries in `&path`.
+---
+---Items are returned with a `label` that is the shortest unambiguous relative
+---path to an entry found in `&path`.
+---
+---
+---@param pattern string a pattern prefix to use for searching the path. A
+---trailing `*` is automatically appended before searching.
+---@param options? CmpWikilinks._find_completion_items.Options options
+---@return CmpWikiLinks.CompletionItem[]
+CmpWikilinks._find_completion_items = function(pattern, options)
+  local opts = options or {}
   local globpath = opts.globpath or vim.fn.globpath
   local paths = opts.paths or vim.opt.path:get()
 
@@ -132,6 +180,7 @@ CmpWikilinks._find_completion_items = function(pattern, ...)
     -- TODO: can we control the order?
     return {
       label = CmpWikilinks._shorten_item(path, paths, matches),
+      path = path,
       -- insertText = path,
     }
   end, matches)

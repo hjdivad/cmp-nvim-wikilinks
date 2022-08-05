@@ -163,17 +163,101 @@ describe('cmp_wikilinks', function()
 
       assert.same({
         {
-          label = 'refs'
+          label = 'refs',
+          path = '/home/user/vault/refs'
         },
         {
-          label = 'projects/rust'
+          label = 'projects/rust',
+          path = '/home/user/vault/projects/rust.md',
         },
         {
-          label = 'refs/rust'
+          label = 'refs/rust',
+          path = '/home/user/vault/refs/rust.md',
         }
       }, lib._find_completion_items('r', opts))
     end)
   end)
 
-  -- TODO: resolution (markdown previews)
+  local function build_mock_fs()
+  end
+
+  describe('.resolve', function()
+    local mock_io = {
+      open = function(p)
+        if p == 'some/path.md' then
+          return {
+            read = function()
+              return [[
+# Test Markdown Content
+`amazing`
+]]
+            end,
+            close = function() end
+          }
+        end
+
+        return nil
+      end,
+    }
+
+    it('appends markdown previews', function()
+      local completion_item = {
+        label = 'some/label',
+        path = 'some/path.md'
+      }
+      local was_called = false
+      local callback = function(updated_item)
+        assert.same({
+          label = 'some/label',
+          path = 'some/path.md',
+          documentation = {
+            kind = 'markdown',
+            value = [[
+# Test Markdown Content
+`amazing`
+]]
+          }
+        }, updated_item, 'resolve updated the completion item')
+        was_called = true
+      end
+
+      ---@diagnostic disable-next-line: param-type-mismatch
+      lib.resolve(nil, completion_item, callback, { io = mock_io })
+      assert.equals(true, was_called, 'resolve invoked the callback')
+    end)
+
+    it('does nothing if it cannot open the completion file', function()
+      local completion_item = {
+        label = 'some/label',
+        path = 'some/missing/path.md'
+      }
+      local was_called = false
+      local callback = function(updated_item)
+        assert.same({
+          label = 'some/label',
+          path = 'some/missing/path.md',
+        }, updated_item, 'updated_item')
+        was_called = true
+      end
+
+      ---@diagnostic disable-next-line: param-type-mismatch
+      lib.resolve(nil, completion_item, callback, { io = mock_io })
+      assert.equals(true, was_called, 'resolve invoked the callback (invalid path)')
+
+      completion_item = {
+        label = 'some/label',
+      }
+      was_called = false
+      callback = function(updated_item)
+        assert.same({
+          label = 'some/label',
+        }, updated_item, 'updated_item')
+        was_called = true
+      end
+
+      ---@diagnostic disable-next-line: param-type-mismatch
+      lib.resolve(nil, completion_item, callback, { io = mock_io })
+      assert.equals(true, was_called, 'resolve invoked the callback (no path)')
+    end)
+  end)
 end)
