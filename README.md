@@ -2,7 +2,7 @@
 
 A source for [nvim-cmp][].
 
-It completes files in wikilinks `` against your `&path`.
+It completes files in wikilinks  against your `&path`.
 
 It is intended to be used when editing [Obsidian](https://obsidian.md/) vaults within neovim.
 
