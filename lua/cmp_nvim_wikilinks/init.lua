@@ -9,6 +9,7 @@ end
 local CmpWikilinks = {}
 
 local has_setup = false
+local glob_suffixes = { "*" }
 
 CmpWikilinks.new = function()
 	return setmetatable({}, { __index = CmpWikilinks })
@@ -17,11 +18,15 @@ end
 ---@class CmpWikilinksOptions
 ---@field log_level? string Initial log level ("fatal", "error", "warn", "info", "debug", "trace")
 ---@field log_to_file? boolean Whether to write log messages to disk
+---@field glob_suffixes? string[] suffixes to use when searching.  Defaults to `{"*"}`.  Set to `{"**/*", "*"}` to search everything in &path
 
 ---@param options? CmpWikilinksOptions
 function CmpWikilinks.setup(options)
 	local opts = vim.tbl_deep_extend("force", { log_level = "info", log_to_file = true }, options or {})
 
+	if opts.glob_suffixes then
+		glob_suffixes = opts.glob_suffixes
+	end
 	log.set_level(opts.log_level)
 	log.use_file(opts.log_to_file, true)
 
@@ -37,8 +42,8 @@ end
 function CmpWikilinks:is_available()
 	-- TODO: impl; do this only when explicitly enabled
 	--  * userland callback
-  --  * specific filetypes
-  --  * always/never
+	--  * specific filetypes
+	--  * always/never
 	return true
 end
 
@@ -62,7 +67,7 @@ function CmpWikilinks:complete(params, callback)
 	-- TODO: complete everything up to the last / and then *
 	local completion_pattern = CmpWikilinks._get_completion_pattern(line, column)
 	if completion_pattern then
-		local items = CmpWikilinks._find_completion_items(completion_pattern)
+		local items = CmpWikilinks._find_completion_items(completion_pattern, { glob_suffixes = glob_suffixes })
 
 		callback({
 			items = items,
@@ -181,6 +186,7 @@ end
 
 ---@class CmpWikilinks._find_completion_items.Options
 ---@field globpath fun(path: string, pat: string, nosuf: boolean, list: boolean): string[] optional function to use for searching `paths`. Defaults to `vim.fn.globpath`
+---@field glob_suffixes? string[] Suffixes to use when searching for `pattern` in `paths`
 ---@field paths string[] The paths to search. Defaults to `vim.opt.path.get()`
 
 ---Return a list of completion items for a pattern. The pattern is searched
@@ -198,8 +204,16 @@ CmpWikilinks._find_completion_items = function(pattern, options)
 	local opts = options or {}
 	local globpath = opts.globpath or vim.fn.globpath
 	local paths = opts.paths or vim.opt.path:get()
+	local glob_suffixes = opts.glob_suffixes or { "*" }
 
-	local matches = globpath(vim.o.path, pattern .. "*", false, true)
+	local matches = {}
+	for _, glob_suffix in ipairs(glob_suffixes) do
+		local new_matches = globpath(vim.o.path, pattern .. glob_suffix, false, true)
+		for _, new_match in ipairs(new_matches) do
+			table.insert(matches, new_match)
+		end
+	end
+
 	local items = vim.tbl_map(function(path)
 		-- see <https://github.com/hrsh7th/nvim-cmp/blob/c4dcb1244a8942b8d2bd3c0a441481e12f91cdf1/lua/cmp/types/lsp.lua#L173-L191>
 		-- TODO: can we control the order?
