@@ -1,30 +1,60 @@
 # cmp-nvim-wikilinks
 
-A source for [nvim-cmp][].
+A wikilinks-completion source for [nvim-cmp][].
 
-It completes files in wikilinks  against your `&path`.
+## ✨ Features
+
+It completes files in wikilinks (e.g. `[[foo/bar.md]]`) against your `&path`.
 
 It is intended to be used when editing [Obsidian](https://obsidian.md/) vaults within neovim.
 
-# Dependencies
+## 📦 Installation & Setup
+
+### Requirements
 
 * Neovim ≥ 0.5
 * [nvim-cmp][]
 
-# Installation & Setup
+### With [lazy.nvim](https://github.com/folke/lazy.nvim)
 
 ```lua
-
-require('cmp_nvim_wikilinks').setup {}
--- see <https://github.com/hrsh7th/nvim-cmp#setup> for additional setup options
-cmp.setup {
-  -- ...
-  sources = cmp.config.sources({
-    -- ...
-    { name = 'wikilinks' }, -- complete obsidian-style wikilinks against &path
-  })
+-- ~/.config/nvim/lua/plugins/completion.lua
+return {
+  {
+    "hjdivad/cmp-nvim-wikilinks",
+    opts = {
+      -- log_level = 'trace',
+      -- log_to_file = true,
+      -- glob_suffixes = { "*" }
+    }
+  },
+  {
+    "hrsh7th/nvim-cmp",
+    dependencies = {
+      "hjdivad/cmp-nvim-wikilinks",
+    },
+    opts = function()
+      local cmp = require("cmp")
+      return {
+        sources = cmp.config.sources({
+          { name = "wikilinks" }, -- complete [[foo]] &c.
+        }),
+      }
+    end,
+  },
 }
 ```
 
+### Configuration
+
+```lua
+require('cmp-nvim-wikilinks').setup({
+  log_level = 'info', -- logging
+  log_to_file = false,
+  -- A table of suffixes to complete. See :help wildcards
+  -- The default matches files and directories in `&path`.  To also match files in directories, use { "*", "*/*" }.  To match everything recursively in `&path` use { "*", "**/*" }.
+  glob_suffixes = { "*" }
+})
+```
 
 [nvim-cmp]: https://github.com/hrsh7th/nvim-cmp
